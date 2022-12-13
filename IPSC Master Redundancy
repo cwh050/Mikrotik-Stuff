@@ -1,0 +1,21 @@
+# add NAT for the main repeater
+/ip firewall nat add chain=dstnat dst-port=50000 action=dst-nat protocol=udp to-address=192.168.0.2 to-port=50000 comment=MAIN
+# add NAT for the standby repeater
+/ip firewall nat add chain=dstnat dst-port=50000 action=dst-nat protocol=udp to-address=192.168.0.3 to-port=50000 comment=STANDBY
+:local status true
+/ip firewall nat set [find comment="MAIN"] disabled=no
+/ip firewall nat set [find comment="STANDBY"] disabled=yes
+do {if (([/ping 192.168.0.2 count=5]=0) and ($status = true)) do={
+		:log info "Main master repeater is down."
+		/ip firewall nat set [find comment="MAIN"] disabled=yes
+		/ip firewall nat set [find comment="STANDBY"] disabled=no	
+		:set status false
+} else={ 
+	:if (([/ping 192.168.0.2 count=5]=5) and ($status = false)) do={
+		:log info "Main master repeater is up."
+		/ip firewall nat set [find comment="MAIN"] disabled=no
+		/ip firewall nat set [find comment="STANDBY"] disabled=yes
+		:set status true
+	}
+}
+} while=( true )
